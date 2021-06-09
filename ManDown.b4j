@@ -1,0 +1,463 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=CustomDialog.bjl
+File2=DataBaseView.bjl
+File3=Layout1.bjl
+File4=Radio1.bjl
+File5=radioDwn1.png
+File6=radioDwn2.png
+File7=radioUp1.png
+File8=radioUp2.png
+FileGroup1=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+FileGroup5=Default Group
+FileGroup6=Default Group
+FileGroup7=Default Group
+FileGroup8=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=jnetwork
+Library4=jsql
+Library5=jxui
+Library6=xui views
+Module1=DataBase
+Module2=Radio
+NumberOfFiles=8
+NumberOfLibraries=6
+NumberOfModules=2
+Version=9
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 800
+	#MainFormHeight: 600
+	#AdditionalJar: sqlite-jdbc-3.7.2 
+#End Region
+
+Sub Process_Globals
+	Private fx As JFX
+	Private MainForm As Form
+	Private xui As XUI
+	Private Button1 As B4XView
+	Private Radio1(400) As Radio
+	Private DB As DataBase
+	Private AbonentsNum, clsCnt2 As Int
+	Private Button2 As Button
+	Private Pane0 As Pane
+	Private Pane3 As Pane
+	Private Pane1 As Pane
+	Private Pane2 As Pane
+	Private Shops() As Pane 
+	
+	Private Button3 As Button
+	Private NumsMap As Map
+	Private NamesMap As Map
+	Private RegMap As Map
+	Private udp As UDPSocket
+	Private Pkt As UDPPacket
+	'Private IndexFreePnl1(),   IndexFreePnl2(),  IndexFreePnl3() As Int
+	Private IndexFreePnl(3,10) As Int
+	
+	'Private Shops() As Node
+	Public SQL1 As SQL
+	Private CurrentIndex = 0 As Int     ' index of the current entry
+    Public RowIDList As List
+	Private btnAdd As Button
+	Private btnDelete As Button
+	Private btnExit As Button
+	
+	Private dialog As B4XDialog
+	Private fieldFirstName As B4XFloatTextField
+	Private fieldLastName As B4XFloatTextField
+	
+	Private Pane13 As Pane
+	Private tfName As TextField
+	Private tfNum As TextField
+	Private TextField1 As TextField
+	'Private lwAbonents As ListView
+	Private tvAbonents As TableView
+	Private btnProgRadio As Button
+	Private tf_ChNum As TextField
+	Private tf_IDserver As TextField
+	Private btn_ProgMenu As Button
+	Private Pane14 As Pane
+	Private btn_MenuExit As Button
+	Private cb_indoor As CheckBox
+	Private tf_chpd As TextField
+	Private tf_mdTim As TextField
+	Private tf_regTim As TextField
+	Private tf_Y1max As TextField
+	Private tf_Y1min As TextField
+	Private tf_Y2max As TextField
+	Private tf_Y2min As TextField
+	Private tf_Z1max As TextField
+	Private tf_Z1min As TextField
+	Private tf_Z2max As TextField
+	Private tf_Z2min As TextField
+	Private tf_radioID As TextField
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	Dim lst As List
+	lst.Initialize
+	
+	'Dim cm as ContextMenu
+	MainForm = Form1
+	MainForm.RootPane.LoadLayout("Layout1")
+	MainForm.Show
+	NumsMap.Initialize
+	NamesMap.Initialize
+	
+	Shops = (Array As Pane(Pane0,Pane1,Pane2,Pane3)) ' ... Pane12  до 13 штук
+	
+	If File.Exists(File.DirData("ManDown"), "clients.db") = False Then
+		'copy the default DB
+		SQL1.InitializeSQLite(File.DirData("ManDown"), "clients.db", True)
+		CreateDataBase
+	End If
+	SQL1.InitializeSQLite(File.DirData("ManDown"), "clients.db", True)
+	
+	NumsMap = File.ReadMap(File.DirApp, "settingsNums.txt")
+	NamesMap = File.ReadMap(File.DirApp, "settingsNames.txt")
+	RegMap = File.ReadMap(File.DirApp, "settingsReg.txt")
+	AbonentsNum = NumsMap.Size
+	tvAbonents.SetColumns(Array As String("Номер", "ID", "Владелец"))
+	For i = 0 To AbonentsNum - 1
+		Dim Row() As Object = Array (i+1, NumsMap.GetValueAt(i), NamesMap.GetValueAt(i))
+		tvAbonents.Items.Add(Row)
+	Next
+	RestoreRadio
+	
+	dialog.Initialize(MainForm.RootPane)
+	dialog.Title = "Проверка доступа"
+End Sub
+
+Sub Button1_Click 'регистрация нового абонента
+	'xui.MsgboxAsync("Hello World!", "B4X")
+'	Radio1(clsCnt1).Initialize(Me, "Radio" & clsCnt1)
+'	Radio1(clsCnt1).AddToParent(Pane0, 10dip, 10dip, 290, 260)
+'	Radio1(clsCnt1).SetMembers(1000+clsCnt1, "Петров " & clsCnt1 )
+'	Radio1(clsCnt1).SetRegIndx(0,0)
+	
+'	clsCnt1 = clsCnt1 + 1
+'	DB.Initialize(Me, "DataBase")
+'	DB.AddToParent(Pane1, 10dip, 10dip, 290, 260)
+'	NumsMap.Put(0,"1000")
+'	NamesMap.Put(0, "petrov")
+'	NumsMap.Put(1,"1022")
+'	NamesMap.Put(1, "ivanov")
+'	File.WriteMap(File.DirApp, "settingsNums.txt", NumsMap)
+'	File.WriteMap(File.DirApp, "settingsNames.txt", NamesMap)
+	Pane13.Visible = True
+ 
+End Sub
+
+Private Sub Button2_Click ' добавить во вторую панель -- отладка
+	Dim r As Node
+	r = Pane1.GetNode(TextField1.Text)
+	Pane2. AddNode(r ,10dip, 10dip + 44*clsCnt2, 290, 260)
+	clsCnt2 = clsCnt2 + 1
+	
+End Sub
+
+Private Sub Button3_Click
+	'Dim r As Node
+	'r = Pane1.GetNode(TextField1.Text)
+	Radio1(TextField1.Text).StartTimer
+End Sub
+
+Private Sub udp_PacketArrived(Packet As UDPPacket)
+	Dim arr() As Byte
+	Dim Num As Int
+	Dim Reg As Int
+	Dim r As Node
+	Dim Indx As Int
+	arr = Packet.Data
+	Num = arr(2) * 256 + arr(3)
+	Reg = arr(4)
+	Dim wasReg As Int
+	
+	
+	If IsRadioReg(Num) == True Then
+		wasReg = Radio1(NumsMap.GetKeyAt(Num)).GetReg'где была зарегестрирована станция
+		r = Shops(wasReg).GetNode(Num) ' что будем перемещать
+		IndexFreePnl(wasReg,(Radio1(NumsMap.GetKeyAt(Num)).GetIndex)) = 0'освобождаем место
+		Indx = GetFreeIndex(Reg)' ищем свободное место
+		Shops(Reg).AddNode( r ,5dip, 10dip + 44*Indx, 290, 260)' добавляем на это место
+	
+		RegMap.Put(RegMap.GetKeyAt(Num), Reg) ' запишем где зарегесрировалась
+		Radio1(NumsMap.GetKeyAt(Num)).SetRegIndx(Reg,Indx)'поменять индекс и регистрацию
+		Radio1(NumsMap.GetKeyAt(Num)).StartTimer ' помигаем 3 сек
+	End If
+End Sub
+
+Private Sub GetFreeIndex(Pnl As Int) As Int
+	For i = 0 To 9
+		If IndexFreePnl(Pnl,i) = 0 Then
+			Return i
+		End If
+	Next
+End Sub
+
+Private Sub IsRadioReg(Num As Int) As Boolean ' Есть ли станция в списке
+	For Each i As String In NumsMap.Keys   
+		If NumsMap.Get(i) = Num Then
+			Return True
+		End If
+	Next
+	Return False	
+End Sub
+
+Private Sub CreateDataBase
+'	Dim Query As String
+'	
+'	Query = "CREATE TABLE persons (Number INTEGER, Name TEXT, Reg INTEGER, Type INTEGER  , Date TEXT)"
+'	SQL1.ExecNonQuery(Query)
+'	
+'	'Fills a few entries
+'	Query = "INSERT INTO persons VALUES (?, ?, ?)"
+'	SQL1.ExecNonQuery2(Query, Array As String("John", "KENNEDY", "New York"))
+'	SQL1.ExecNonQuery2(Query, Array As String("Peter", "FALK", "Los Angeles"))
+'	SQL1.ExecNonQuery2(Query, Array As String("Jack", "LONDON", "Seattle"))
+'	SQL1.ExecNonQuery2(Query, Array As String("Ronald", "REGAN", "Los Angeles"))
+End Sub
+
+Private Sub btnExit_Click
+	Pane13.Visible = False
+End Sub
+
+Private Sub btnDelete_Click
+	Dim j As String
+	For Each i As String In NumsMap.Keys     '         i = 0 To NumsMap.Size - 1
+		'j = i
+		Log(i)
+		Log(NumsMap.Get(i))
+		If NumsMap.Get(i) = tvAbonents.SelectedRowValues(1) Then
+			j = i
+			Exit
+		End If
+	Next
+	NumsMap.Remove(j)
+	NamesMap.Remove(j)
+	RegMap.Remove(j)
+	File.WriteMap(File.DirApp, "settingsNums.txt", NumsMap)
+	File.WriteMap(File.DirApp, "settingsNames.txt", NamesMap)
+	File.WriteMap(File.DirApp, "settingsReg.txt", RegMap)
+	AbonentsNum = AbonentsNum - 1
+	' update database
+	tvAbonents.ClearSelection
+End Sub
+
+Private Sub btnAdd_Click
+	
+	For Each v As Int In NumsMap.Values
+		If v = tfNum.Text Then
+			xui.MsgboxAsync("Такой ИД уже есть", "Информация")
+			Return
+		End If
+	Next
+	
+	NumsMap.Put(AbonentsNum, tfNum.Text)
+	NamesMap.Put(AbonentsNum, tfName.Text)
+	RegMap.Put(AbonentsNum, 0)
+	'Log(NumsMap)
+	File.WriteMap(File.DirApp, "settingsNums.txt", NumsMap)
+	File.WriteMap(File.DirApp, "settingsNames.txt", NamesMap)
+	File.WriteMap(File.DirApp, "settingsReg.txt", RegMap)
+	Radio1(AbonentsNum).Initialize(Me, "Radio" & AbonentsNum)
+	Radio1(AbonentsNum).AddToParent(Pane0, 5dip, 10dip, 290, 260)
+	Radio1(AbonentsNum).SetMembers( tfNum.Text,  tfName.Text )
+	Radio1(AbonentsNum).SetRegIndx(0,0)
+	
+	Dim Row() As Object = Array (AbonentsNum + 1, tfNum.Text, tfName.Text)
+	tvAbonents.Items.Add(Row)
+	AbonentsNum = AbonentsNum + 1
+End Sub
+
+Private Sub RestoreRadio
+	Dim cnt As Int = 0
+	Dim IdxOnPnl(4) As Int
+	
+	For Each i As String In RegMap.Keys
+		Radio1(cnt).Initialize(Me, "Radio" & cnt)
+		Radio1(cnt).AddToParent(Shops(RegMap.Get(i)), 5dip, 10dip + IdxOnPnl(RegMap.Get(i)) * 46 , 290, 260)
+		Radio1(cnt).SetMembers(NumsMap.Get(i) , NamesMap.Get(i) )
+		Radio1(cnt).SetRegIndx( RegMap.Get(i), IdxOnPnl(RegMap.Get(i)))
+		IdxOnPnl(RegMap.Get(i)) = IdxOnPnl(RegMap.Get(i)) + 1
+		cnt = cnt + 1
+	Next
+	
+End Sub
+
+Private Sub btnProgRadio_Click
+	Dim option, index As Int
+	Dim sendMessage(70) As Byte
+	
+	Dim input As B4XInputTemplate
+	input.Initialize
+	input.RegexPattern = ".+" 'require at least one character
+	Wait For (dialog.ShowTemplate(input, "OK", "", "")) Complete (Result As Int)
+	If Result = xui.DialogResponse_Positive Then
+		
+		If input.Text = "1809" Then
+			
+		
+	
+	
+	sendMessage(0) = 0x50'P
+	sendMessage(1) = 0x52'R
+	sendMessage(2) = 0x47'G
+	index = 3
+	If tf_IDserver.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 0
+		option = tf_IDserver.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_chpd.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 1
+		option = tf_chpd.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_mdTim.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 2
+		option = tf_chpd.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+'	If tf_mdTim.Text <> 0 Then 'max cnt
+'		sendMessage(index) = 0
+'		sendMessage(index+1) = 3
+'		option = tf_chpd.Text
+'		sendMessage(index+2) = option / 256
+'		sendMessage(index+3) = option  Mod 256
+'		index = index + 4
+'	If tf_mdTim.Text <> 0 Then  ' porog
+'		sendMessage(index) = 0
+'		sendMessage(index+1) = 4
+'		option = tf_chpd.Text
+'		sendMessage(index+2) = option / 256
+'		sendMessage(index+3) = option  Mod 256
+'		index = index + 4
+	
+	If tf_Z1max.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 5
+		option = tf_Z1max.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Z1min.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 6
+		option = tf_Z1min.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Z2max.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 7
+		option = tf_Z2max.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Z2min.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 8
+		option = tf_Z1min.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Y1max.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 9
+		option = tf_Y1max.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Y1min.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 10
+		option = tf_Y1min.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Y2max.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 11
+		option = tf_Y2max.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_Y2min.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 12
+		option = tf_Y2min.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+		
+	If tf_ChNum.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 13
+		option = tf_ChNum.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	If tf_regTim.Text <> "" Then
+		sendMessage(index) = 0
+		sendMessage(index+1) = 14
+		option = tf_regTim.Text
+		sendMessage(index+2) = option / 256
+		sendMessage(index+3) = option  Mod 256
+		index = index + 4
+	End If
+	
+	sendMessage(index) = 0
+	sendMessage(index+1) = 15
+	sendMessage(index+2) = 0
+	If cb_indoor.Checked = True Then
+		sendMessage(index+3) = 1
+	Else
+		sendMessage(index+3) = 0
+	End If
+	index = index + 4
+    
+	Dim data(index) As Byte
+	For i = 0 To index - 1
+		data(i) = sendMessage(i)
+		Log(data(i))
+	Next
+	
+		Else 
+			dialog.Show("Неправильный пароль", "OK", "", "")
+		
+		End If
+	End If
+End Sub
+
+Private Sub btn_ProgMenu_Click
+	Pane14.Visible = True
+End Sub
+
+Private Sub btn_MenuExit_Click
+	Pane14.Visible = False
+End Sub
