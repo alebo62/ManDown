@@ -7,8 +7,25 @@ Version=9
 'Static code module
 Sub Process_Globals
 	Private fx As JFX
-	
+	Public WriterReg As TextWriter
+	Public ReadReg As TextReader
+	Public WriterAlrm As TextWriter
+	Public ReadAlrm As TextReader
 End Sub
+
+Public Sub InitTextWriter
+	WriterReg.Initialize2(File.OpenOutput(File.DirApp, "Reg.txt" ,True),"Windows-1251")
+	WriterAlrm.Initialize2(File.OpenOutput(File.DirApp, "Alrm.txt" ,True),"Windows-1251")
+End Sub
+
+Public Sub InitAlrmReader
+	ReadAlrm.Initialize2(File.OpenInput(File.DirApp, "Alrm.txt" ),"Windows-1251")
+End Sub
+
+Public Sub InitRegReader
+	ReadReg.Initialize2(File.OpenInput(File.DirApp, "Reg.txt" ),"Windows-1251")
+End Sub
+
 
 Public Sub ArrToList(r As Int, c As Int, arr(,) As Int) As List
 	Dim lst As List

@@ -1,0 +1,5 @@
+#Mon Jun 07 15:38:24 MSK 2021
+0=oooo
+1=gggg
+2=rrrr
+3=hhhh

@@ -103,6 +103,8 @@ Sub Process_Globals
 	Private bnt_DB As Button
 	Private Pane15 As Pane
 	Private btn_DBexit As Button
+	Dim sbld As StringBuilder
+	
 End Sub
 
 Sub AppStart (Form1 As Form, Args() As String)
@@ -143,6 +145,10 @@ Sub AppStart (Form1 As Form, Args() As String)
 	
 	udp.Initialize("udp", 4004, 64)
 	
+	sbld.Initialize
+	Utils.InitTextWriter
+	
+	
 End Sub
 
 Sub Button1_Click 'регистрация нового абонента
@@ -175,7 +181,7 @@ Private Sub Button3_Click
 	Dim Pkt As UDPPacket
 	Dim Data() As Byte
 	'Data = Array As Byte(0,0,1,444-256,3)
-	Data = Array As Byte(0,0,0,111,3)
+	Data = Array As Byte(0,0,0,222,0x81)
 	Pkt.Initialize(Data, "localhost", 4004)
 	udp.Send(Pkt)
 End Sub
@@ -186,28 +192,61 @@ Private Sub udp_PacketArrived(Packet As UDPPacket)
 	Dim Reg As Int
 	Dim r As Node
 	Dim Indx As Int
+	Dim lst As List
+	
+	lst.Initialize
 	arr = Packet.Data
 	
 	Num = Utils.ToUnsigned(Packet.Data(2)) * 256 + Utils.ToUnsigned(Packet.Data(3))'arr(2) * 256 + arr(3)
-	Reg = arr(4)
+	Reg = Utils.ToUnsigned(Packet.Data(4))
+	
 	Dim wasReg As Int
 	
 	Dim i As Int = Utils.IsRadioReg(Num)
 	If  i <> -1 Then
 		wasReg = Radio1(i).GetReg'где была зарегестрирована станция
-		r = Shops(wasReg).GetNode(Radio1(i).GetIndex) ' что будем перемещать
-		IndexFreePnl(wasReg,Radio1(i).GetIndex) = 0'освобождаем место
-		Indx = Utils.GetFreeIndex(Reg)' ищем свободное место
-		Shops(Reg).AddNode( r ,5dip, 10dip + 44*Indx, 290, 260)' добавляем на это место
-		RegMap.Put(i, Reg) ' запишем где зарегесрировалась
-		Radio1(i).SetRegIndx(Reg,Indx)'поменять индекс и регистрацию
-		Radio1(i).StartTimer ' помигаем 3 сек
-		File.WriteMap(File.DirApp, "settingsReg.txt", RegMap)
-		
-		Dim lst As List
-		lst.Initialize 
-		lst= Utils.ArrToList(12,10, IndexFreePnl)
-		File.WriteList(File.DirApp, "settingsFrPnl.txt", lst)
+		If Bit.And(0x80, Reg) <> 0 Then
+			Reg = Bit.And(0x7F, Reg)
+			If wasReg <> Reg Then ' если новое место регистрации
+				r = Shops(wasReg).GetNode(Radio1(i).GetIndex) ' что будем перемещать
+				IndexFreePnl(wasReg,Radio1(i).GetIndex) = 0'освобождаем место
+				Indx = Utils.GetFreeIndex(Reg)' ищем свободное место
+				Shops(Reg).AddNode( r ,5dip, 10dip + 44*Indx, 290, 260)' добавляем на это место
+				RegMap.Put(i, Reg) ' запишем где зарегесрировалась
+				Radio1(i).SetRegIndx(Reg,Indx)'поменять индекс и регистрацию
+				Radio1(i).SetAlarm ' помигаем 3 сек
+				File.WriteMap(File.DirApp, "settingsReg.txt", RegMap)' запомним список регистрации
+				lst= Utils.ArrToList(12,10, IndexFreePnl)
+				File.WriteList(File.DirApp, "settingsFrPnl.txt", lst)'запомним список свободных мест
+				sbld.Remove(0, sbld.Length)
+				sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+				Utils.WriterReg.WriteLine(sbld)
+				Utils.WriterReg.Flush
+			Else
+				Radio1(i).SetAlarm
+			End If
+			sbld.Remove(0, sbld.Length)
+			sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+			Utils.WriterAlrm.WriteLine(sbld)
+			Utils.WriterAlrm.Flush
+		Else ' перерегстрация
+			If wasReg <> Reg Then ' если новое место регистрации
+				r = Shops(wasReg).GetNode(Radio1(i).GetIndex) ' что будем перемещать
+				IndexFreePnl(wasReg,Radio1(i).GetIndex) = 0'освобождаем место
+				Indx = Utils.GetFreeIndex(Reg)' ищем свободное место
+				Shops(Reg).AddNode( r ,5dip, 10dip + 44*Indx, 290, 260)' добавляем на это место
+				RegMap.Put(i, Reg) ' запишем где зарегесрировалась
+				Radio1(i).SetRegIndx(Reg,Indx)'поменять индекс и регистрацию
+				Radio1(i).StartTimer ' помигаем 3 сек
+				File.WriteMap(File.DirApp, "settingsReg.txt", RegMap)' запомним список регистрации
+				lst= Utils.ArrToList(12,10, IndexFreePnl)
+				File.WriteList(File.DirApp, "settingsFrPnl.txt", lst)'запомним список свободных мест
+				sbld.Remove(0, sbld.Length)
+				sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+				Utils.WriterReg.WriteLine(sbld)
+				Utils.WriterReg.Flush
+			End If
+		End If
 	End If
 End Sub
 

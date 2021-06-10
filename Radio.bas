@@ -68,6 +68,18 @@ Public Sub GetIndex As Int
 	Return m_indexOnPane
 End Sub
 
+Public Sub SetAlarm 
+	ImageView1.SetImage(bmpDwn1)
+	Timer1.Initialize("Timer1", 300)
+	Timer1.Enabled = True
+End Sub
+
+Public Sub ResetAlarm 
+	ImageView1.SetImage(bmpUp1)
+	Timer1.Enabled = False
+End Sub
+
+
 
 
 Public Sub AddToParent(Parent As Pane, Left As Int, Top As Int, Width As Int,Height As Int)
@@ -78,10 +90,16 @@ Public Sub AddToParent(Parent As Pane, Left As Int, Top As Int, Width As Int,Hei
 End Sub
 
 Private Sub Timer1_Tick
-	If ImageView1.GetImage == bmpUp2 Then
+	If ImageView1.GetImage = bmpUp2 Then
 		ImageView1.SetImage(bmpUp1)
-	Else
+	Else If ImageView1.GetImage = bmpUp1 Then
 		ImageView1.SetImage(bmpUp2)
+	End If
+	
+	If ImageView1.GetImage = bmpDwn2 Then
+		ImageView1.SetImage(bmpDwn1)
+	Else If ImageView1.GetImage = bmpDwn1 Then
+		ImageView1.SetImage(bmpDwn2)
 	End If
 	'Log("timer")
 	'Dim bmp As Image = fx.LoadImage(File.DirAssets, "radioUp2.png")
@@ -99,8 +117,13 @@ Private Sub Timer2_Tick
 	Timer1.Enabled = False
 	Timer2.Enabled = False 
 	ImageView1.SetImage(bmpUp1)
-	
 End Sub
 
 
 
+
+
+Private Sub ImageView1_MouseClicked (EventData As MouseEvent)
+	Timer1.Enabled = False
+	ImageView1.SetImage(bmpUp1)
+End Sub
