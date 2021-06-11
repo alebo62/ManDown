@@ -21,13 +21,15 @@ Library1=jcore
 Library2=jfx
 Library3=jnetwork
 Library4=jsql
-Library5=jxui
-Library6=xui views
+Library5=jstringutils
+Library6=jxui
+Library7=xui views
+Library8=jstringfunctions
 Module1=DataBase
 Module2=Radio
 Module3=Utils
 NumberOfFiles=8
-NumberOfLibraries=6
+NumberOfLibraries=8
 NumberOfModules=3
 Version=9
 @EndOfDesignText@
@@ -105,6 +107,10 @@ Sub Process_Globals
 	Private btn_DBexit As Button
 	Dim sbld As StringBuilder
 	
+	Private btn_ViewReg As Button
+	Private btn_ViewAlrm As Button
+	Private tv_RegAlrm As TableView
+	Private lblTVregAlrm As Label
 End Sub
 
 Sub AppStart (Form1 As Form, Args() As String)
@@ -219,14 +225,14 @@ Private Sub udp_PacketArrived(Packet As UDPPacket)
 				lst= Utils.ArrToList(12,10, IndexFreePnl)
 				File.WriteList(File.DirApp, "settingsFrPnl.txt", lst)'запомним список свободных мест
 				sbld.Remove(0, sbld.Length)
-				sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+				sbld.Append($"$DateTime{DateTime.Now}"$).Append(",").Append(NamesMap.GetValueAt(i)).Append(",").Append(Reg)
 				Utils.WriterReg.WriteLine(sbld)
 				Utils.WriterReg.Flush
 			Else
 				Radio1(i).SetAlarm
 			End If
 			sbld.Remove(0, sbld.Length)
-			sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+			sbld.Append($"$DateTime{DateTime.Now}"$).Append(",").Append(NamesMap.GetValueAt(i)).Append(",").Append(Reg)
 			Utils.WriterAlrm.WriteLine(sbld)
 			Utils.WriterAlrm.Flush
 		Else ' перерегстрация
@@ -242,7 +248,7 @@ Private Sub udp_PacketArrived(Packet As UDPPacket)
 				lst= Utils.ArrToList(12,10, IndexFreePnl)
 				File.WriteList(File.DirApp, "settingsFrPnl.txt", lst)'запомним список свободных мест
 				sbld.Remove(0, sbld.Length)
-				sbld.Append($"$DateTime{DateTime.Now}"$).Append(" ").Append(NamesMap.GetValueAt(i)).Append(" ").Append(Reg)
+				sbld.Append($"$DateTime{DateTime.Now}"$).Append(",").Append(NamesMap.GetValueAt(i)).Append(",").Append(Reg)
 				Utils.WriterReg.WriteLine(sbld)
 				Utils.WriterReg.Flush
 			End If
@@ -508,7 +514,10 @@ Private Sub bnt_DB_Click
 '	Wait For (dialog.ShowTemplate(input, "OK", "", "")) Complete (Result As Int)
 '	If Result = xui.DialogResponse_Positive Then
 '		If input.Text = "1809" Then
-'			Pane15.Visible = True
+	Pane15.Visible = True
+	tv_RegAlrm.SetColumns(Array As String("Время", "Владелец", "Место рег-ции"))
+	btn_ViewReg.Enabled = True
+	btn_ViewAlrm.Enabled = True
 '		Else
 '			dialog.Show("Неправильный пароль", "OK", "", "")
 '		End If
@@ -518,4 +527,42 @@ End Sub
 
 Private Sub btn_DBexit_Click
 	Pane15.Visible = False
+	tv_RegAlrm.Items.Clear
+End Sub
+
+Private Sub btn_ViewReg_Click
+	tv_RegAlrm.Items.Clear
+	Utils.InitRegReader
+	Dim sf As JStringFunctions
+	Dim lst As List
+	Dim str As String
+	
+	lst.Initialize
+	str = Utils.ReadReg.ReadLine
+	Do While str <> Null
+		lst = sf.Split(str , ",")
+		Dim Row() As Object = Array (lst.Get(0), lst.Get(1),lst.Get(2))
+		tv_RegAlrm.Items.add(Row)
+		str = Utils.ReadReg.ReadLine
+	Loop
+	Utils.ReadReg.Close
+End Sub
+
+Private Sub btn_ViewAlrm_Click
+	tv_RegAlrm.Items.Clear
+	Utils.InitAlrmReader
+	Dim sf As JStringFunctions
+	Dim lst As List
+	Dim str As String
+	
+	lst.Initialize
+	str = Utils.ReadAlrm.ReadLine
+	Do While str <> Null
+		lst = sf.Split(str , ",")
+		Dim Row() As Object = Array (lst.Get(0), lst.Get(1),lst.Get(2))
+		tv_RegAlrm.Items.add(Row)
+		str = Utils.ReadAlrm.ReadLine
+	Loop
+	Utils.ReadAlrm.Close
+	
 End Sub
